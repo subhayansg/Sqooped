@@ -1,0 +1,497 @@
+===================== connect to mysql
+mysql -u root -p
+
+===================== to check how many records exists in a file in Hadoop
+hadoop fs -cat /user/cloudera/queryresult/part-m-00000 | wc -l
+
+===================== to check the schemas available under a user
+sqoop-list-databases \
+--connect "jdbc:mysql://quickstart.cloudera:3306" \
+--username retail_dba \
+--password cloudera
+
+====================== to check the tables under a db
+sqoop-list-tables \
+--connect "jdbc:mysql://quickstart.cloudera:3306\retail_db" \
+--username retail_dba \
+--password cloudera
+
+====================== prompt for password
+sqoop-list-tables \
+--connect "jdbc:mysql://quickstart.cloudera:3306\retail_db" \
+--username retail_dba \
+-P
+
+====================== eval
+sqoop-eval \
+--connect "jdbc:mysql://quickstart.cloudera:3306" \
+--username retail_dba \
+--password cloudera \
+--query "select * from retail_db.customers limit 10"
+
+sqoop-eval \
+--connect "jdbc:mysql://quickstart.cloudera:3306" \
+--username retail_dba \
+--password cloudera
+-e "select * from retail_db.customers limit 10"
+
+====================== default import
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+
+====================== import(target-dir)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--target-dir /queryresult
+
+====================== import with different number of mappers(target-dir) --> sequential import
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/trendytech" \
+--username root \
+--password cloudera \
+--table people -m 1 \
+--target-dir /peopleresult1
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/trendytech" \
+--username root \
+--password cloudera \
+--table people \
+--num-mappers 1 \
+--target-dir /peopleresult1
+
+=> In this case data will get stored in, hadoop fs -ls /peopleresult1
+
+====================== import(warehouse-dir)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /queryresult2
+
+=> In this case data will get stored in, hadoop fs -ls /queryresult2/orders
+
+====================== help
+sqoop help
+sqoop help import   -- parameters for import
+sqoop version
+
+====================== redirecting logs
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /queryresult3 1>query.out 2>query.err
+
+====================== file formats
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--as-textfile \
+--warehouse-dir /user/cloudera/textfileformat
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--as-sequencefile \
+--warehouse-dir /user/cloudera/sequencefileformat
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--as-avrodatafile \
+--warehouse-dir /user/cloudera/avrodatafileformat
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--as-parquetfile \
+--warehouse-dir /user/cloudera/parquetfileformat
+
+====================== compression techniques
+=> Default gzip algorithm
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--compress \
+--warehouse-dir /user/cloudera/compressresult
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+-z \
+--warehouse-dir /user/cloudera/compressresult1
+
+=> specify any Hadoop compression codec (BZip2)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--compression-codec BZip2Codec\
+--warehouse-dir /user/cloudera/BZip2Codec
+
+====================== Import data with selected columns
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table customers \
+--columns customer_id,customer_fname,customer_city \
+--warehouse-dir /user/cloudera/selectedcolumns
+=> check output, first 10 rows 
+hadoop fs -cat /user/cloudera/selectedcolumns/customers/part-m-00000 | head
+
+====================== Import data with where clause
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--columns order_id,order_customer_id,order_status \
+--where "order_status in ('complete','closed')" \
+--warehouse-dir /user/cloudera/whereclause
+
+====================== Customize boundary query to exclude outlier affects
+=> with primary-key
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--boundary-query "SELECT 1, 68883" \
+--warehouse-dir /user/cloudera/boundaryquery
+=> 1 is min, 68883 max
+
+=> without primary-key
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table order_items \
+--boundary-query "SELECT min(order_item_order_id), max(order_item_order_id) FROM order_items WHERE order_item_order_id >= 10000" \
+--warehouse-dir /user/cloudera/boundaryquerywopk
+
+====================== using split-by when no primary key is present
+=> numeric column
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders_no_pk \
+--split-by order_id \
+--warehouse-dir /user/cloudera/ordersnopk
+
+=> non-numeric column
+sqoop import \
+-Dorg.apache.sqoop.splitter.allow_text_splitter=true \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table categories \
+--split-by "category_name" \
+--warehouse-dir /user/cloudera/splitnonnumeric
+
+====================== autoreset-to-one-mapper
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders_no_pk \
+--warehouse-dir /user/cloudera/autoresetonemappr
+--delete-targe-dir \
+--autoreset-to-one-mapper \
+--num-mappers 8
+
+=> best use of this is along with import-all-tables
+sqoop import-all-tables \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders_no_pk \
+--warehouse-dir /user/cloudera/autoresetonemappr
+--delete-targe-dir \
+--autoreset-to-one-mapper \
+--num-mappers 2
+=> with import-all-tables we can't use target-dir
+
+====================== Delimiter (fields-terminated-by = columns separated by)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--fields-terminated-by '|' \
+--lines-terminated-by ';' \
+--warehouse-dir /user/cloudera/delimiterresult
+
+====================== create Hive table
+sqoop create-hive-table \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--hive-table ordrs \
+--fields-terminated-by ','
+
+====================== Importing to Hive
+sqoop-import \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--table orders \
+--hive-import \
+--hive-table orders_new \
+--verbose
+
+====================== append
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--target-dir /user/cloudera/appendres \
+--append
+
+====================== delete target directory
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--target-dir /user/cloudera/appendres \
+--delete-target-dir
+
+====================== null values while importing
+=> null string values 
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--warehouse-dir /user/cloudera/nullstringres \
+--null-string "-1"
+
+=> null non-string values 
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username retail_dba \
+--password cloudera \
+--table orders \
+--warehouse-dir /user/cloudera/nullnonstringres \
+--null-non-string "-1"
+
+====================== sqoop export
+sqoop export \
+--connect "jdbc:mysql://quickstart.cloudera:3306/banking" \
+--username root \
+--password cloudera \
+--table card_transactions \
+--export-dir /data/card_trans.csv \
+--fields-terminated-by ','
+
+====================== sqoop export using staging table
+sqoop export \
+--connect "jdbc:mysql://quickstart.cloudera:3306/banking" \
+--username root \
+--password cloudera \
+--table card_transactions \
+--staging-table card_transactions_stage \
+--export-dir /data/card_trans.csv \
+--fields-terminated-by ','
+
+====================== import(warehouse-dir), incremental load
+=> append mode
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data \
+--incremental append \
+--check-column order_id \
+--last-value 0
+=> import everything that has a order_id greater than 0
+
+=> we have inserted 6 more rows
+
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data \
+--incremental append \
+--check-column order_id \
+--last-value 68883
+
+=> validate
+sqoop-eval \
+--connect "jdbc:mysql://quickstart.cloudera:3306" \
+--username retail_dba \
+--password cloudera \
+--query "select count(*) from retail_db.orders"
+
+=> lastmodified mode (append)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data \
+--incremental lastmodified \
+--check-column order_date \
+--last-value 0 \
+--append
+=> import everything, --append means if record already exists append the new record
+
+=> lastmodified mode (merge-key)
+sqoop import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data \
+--incremental lastmodified \
+--check-column order_date \
+--last-value '?' \
+--merge-key order_id
+=> inplace of append use merge-key, '?' should be replaced by a previous timestamp
+
+=> lastmodified mode (merge-key) with increased number of reducers
+sqoop-import \
+-Dmapreduce.job.reduces=3 \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data/ \
+--incremental lastmodified \
+--check-column order_date \
+--last-value '?' \
+--merge-key order_id
+
+====================== incremental import using Sqoop job (without password)
+=> append mode
+sqoop job \
+--create job_orders \
+-- import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password cloudera \
+--table orders \
+--warehouse-dir /data \
+--incremental append \
+--check-column order_id \
+--last-value 0
+=> job_orders is the job name, "-- import \" notice the space
+=> running this only creates a Sqoop job 
+
+=> check job created
+sqoop job --list
+
+=> execute the job job_orders
+sqoop job --exec job_orders
+=> It will prompt for password, cloudera
+
+=> once the job is run, it'll save the state of the job to the metastore
+=> To check what was saved for the job job_orders
+sqoop job --show job_orders
+=> we need the <incremental.last.value>
+
+=> delete a job
+sqoop job --delete job_orders
+
+====================== incremental import using Sqoop job (with password)
+=> create a password file
+echo -n "cloudera" >> .password_file
+
+=> create the sqoop job
+sqoop job \
+--create job_orders \
+-- import \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password_file file:///home/cloudera/.password_file \
+--table orders \
+--warehouse-dir /data \
+--incremental append \
+--check-column order_id \
+--last-value 0
+=> "file://" indicates that the password is stored in local, not in HDFS
+
+====================== incremental import using Sqoop job; where is the state of job stored?
+=> in .sqoop folder in below path
+ls -altr /home/cloudera
+cd .sqoop
+cat metastore.db.script   | grep incremental
+
+====================== creating password alias
+hadoop credential create mysql.banking.password
+-provider jceks://hdfs/user/cloudera/mysql.password.jceks
+=> "mysql.banking.password" is the name of the password alias
+=> "jceks://hdfs/user/cloudera" location where the password is stored in encrypted form in the file "mysql.password.jceks"
+
+=> use password alias
+sqoop eval \
+-Dhadoop.security.credential.provider.path=jceks://hdfs/user/cloudera/mysql.password.jceks \
+--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
+--username root \
+--password-alias mysql.banking.password \
+--query "select count(*) from orders"
+
+====================== free form query import
+sqoop-import \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--query 'select * from orders where $CONDITIONS AND order_id > 50000' \
+--target-dir /data/orders3 \
+--split-by order_id
+
+=> If you are issuing the query wrapped with double quotes ("), you will have to use \$CONDITIONS instead of just $CONDITIONS to disallow your shell from treating it as a shell variable.
+sqoop-import \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--query "select * from orders where \$CONDITIONS AND order_id > 50000" \
+--target-dir /data/orders2 \
+--split-by order_id
+
+====================== Direct import
+sqoop-import \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--table orders \
+--target-dir /data/orders4 \
+--direct
+
+====================== Validate the data copied, either import or export by comparing the row counts from the source and the target post copy.
+sqoop-import \
+--connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+--username root \
+--password cloudera \
+--table orders \
+--target-dir /data/orders5 \
+--validate
