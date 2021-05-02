@@ -1,3 +1,6 @@
+https://community.cloudera.com/t5/Community-Articles/Using-Sqoop-to-fetch-many-tables-in-parallel/ta-p/245709
+
+
 ===================== connect to mysql
 mysql -u root -p
 
@@ -35,14 +38,14 @@ sqoop-eval \
 --password cloudera
 -e "select * from retail_db.customers limit 10"
 
-====================== default import
+====================================================================== default import
 sqoop import \
 --connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
 --username root \
 --password cloudera \
 --table orders \
 
-====================== import(target-dir)
+====================================================================== import(target-dir)
 sqoop import \
 --connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
 --username root \
@@ -50,7 +53,7 @@ sqoop import \
 --table orders \
 --target-dir /queryresult
 
-====================== import with different number of mappers(target-dir) --> sequential import
+====================================================================== import with different number of mappers(target-dir) --> sequential import
 sqoop import \
 --connect "jdbc:mysql://quickstart.cloudera:3306/trendytech" \
 --username root \
@@ -253,6 +256,7 @@ sqoop create-hive-table \
 --table orders \
 --hive-table ordrs \
 --fields-terminated-by ','
+=> This will copy the schema of orders table in MySQL to Hive table
 
 ====================== Importing to Hive
 sqoop-import \
@@ -320,8 +324,10 @@ sqoop export \
 --export-dir /data/card_trans.csv \
 --fields-terminated-by ','
 
-====================== import(warehouse-dir), incremental load
+====================================================================== import(warehouse-dir), incremental load
+
 => append mode
+
 sqoop import \
 --connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
 --username root \
@@ -352,7 +358,10 @@ sqoop-eval \
 --password cloudera \
 --query "select count(*) from retail_db.orders"
 
+
+
 => lastmodified mode (append)
+
 sqoop import \
 --connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" \
 --username root \
@@ -391,8 +400,10 @@ sqoop-import \
 --last-value '?' \
 --merge-key order_id
 
-====================== incremental import using Sqoop job (without password)
+================================================================================ incremental import using Sqoop job (without password)
+
 => append mode
+
 sqoop job \
 --create job_orders \
 -- import \
@@ -407,19 +418,20 @@ sqoop job \
 => job_orders is the job name, "-- import \" notice the space
 => running this only creates a Sqoop job 
 
-=> check job created
+=============================================================== check job created
 sqoop job --list
 
-=> execute the job job_orders
+=============================================================== execute the job job_orders
 sqoop job --exec job_orders
 => It will prompt for password, cloudera
 
 => once the job is run, it'll save the state of the job to the metastore
+
 => To check what was saved for the job job_orders
 sqoop job --show job_orders
 => we need the <incremental.last.value>
 
-=> delete a job
+================================================================ delete a job
 sqoop job --delete job_orders
 
 ====================== incremental import using Sqoop job (with password)
@@ -495,3 +507,7 @@ sqoop-import \
 --table orders \
 --target-dir /data/orders5 \
 --validate
+
+======================= Give custom name to your imports
+Job.getConfiguration().set("mapreduce.output.basename", "custom");
+Output custom-r-00000
